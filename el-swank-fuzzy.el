@@ -194,7 +194,6 @@ matches, all other things being equal."
        (+ (reduce #'+ chunk-scores) length-score)
        (list (mapcar* #'list chunk-scores completion) length-score)))))
 
-
 ;;;;
 (defstruct (swfy-fuzzy-matching (:conc-name swfy-fuzzy-matching.)
                                 (:constructor swfy-make-fuzzy-matching0))
@@ -205,6 +204,15 @@ matches, all other things being equal."
   (swfy-make-fuzzy-matching0 :symbol symbol
                              :score score
                              :symbol-chunks symbol-chunks))
+(defun swfy-fuzzy-matching-greater (m1 m2)
+  (let ((score1 (swfy-fuzzy-matching.score m1))
+        (score2 (swfy-fuzzy-matching.score m2)))
+    (cond ((> score1 score2) t)
+          ((< score1 score2) nil)
+          (t
+           (let ((name1 (symbol-name (swfy-fuzzy-matching.symbol m1)))
+                 (name2 (symbol-name (swfy-fuzzy-matching.symbol m2))))
+             (string< name1 name2))))))
 
 (defmacro* do-swfy-symbols ((symbol regexp) &body body)
   `(mapatoms (lambda (,symbol)
