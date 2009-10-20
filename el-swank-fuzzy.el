@@ -237,6 +237,12 @@ matches, all other things being equal."
                           (- ,time-in-msec negated)))))
          (progn ,@body)))))
 
+(defun swfy-generate-matchings (string time-in-msec)
+  (multiple-value-bind (results remaining-time)
+      (swfy-find-matching-symbols string time-in-msec)
+    (values (sort results 'swfy-fuzzy-matching-greater)
+            (<= remaining-time 0))))
+
 (defun swfy-find-matching-symbols (string time-limit-in-msec)
   (let ((regexp (format "^%s" (regexp-quote (substring string 0 3))))
         completions)
