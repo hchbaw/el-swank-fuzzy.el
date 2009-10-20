@@ -214,11 +214,19 @@ matches, all other things being equal."
                  (name2 (symbol-name (swfy-fuzzy-matching.symbol m2))))
              (string< name1 name2))))))
 
-(defmacro* do-swfy-symbols ((symbol regexp) &body body)
+(defmacro* do-swfy-symbols0 ((symbol pred) &body body)
   `(mapatoms (lambda (,symbol)
-               (when (string-match ,regexp (symbol-name ,symbol))
+               (when (,pred ,symbol)
                  (progn ,@body)))
              obarray))
+(defmacro* do-swfy-symbols ((symbol pred regexp) &body body)
+  (let ((gs (gensym)))
+    `(do-swfy-symbols0 (,symbol
+                        (lambda (,gs)
+                          (and (funcall ,pred ,gs)
+                               (string-match ,regexp
+                                             (symbol-name ,symbol)))))
+       ,@body)))
 
 (defsubst swfy-negate-time (y x)
   (- (truncate (+ (* 10000000 (+ (first y) (second y)))
@@ -237,18 +245,18 @@ matches, all other things being equal."
                           (- ,time-in-msec negated)))))
          (progn ,@body)))))
 
-(defun swfy-generate-matchings (string time-in-msec)
+(defun swfy-generate-matchings (string datap time-in-msec)
   (multiple-value-bind (results remaining-time)
-      (swfy-find-matching-symbols string time-in-msec)
+      (swfy-find-matching-symbols string datap time-in-msec)
     (values (sort results 'swfy-fuzzy-matching-greater)
             (<= remaining-time 0))))
 
-(defun swfy-find-matching-symbols (string time-limit-in-msec)
+(defun swfy-find-matching-symbols (string datap time-limit-in-msec)
   (let ((regexp (format "^%s" (regexp-quote (substring string 0 3))))
         completions)
     (with-swfy-timedout (timedout2p time-limit-in-msec)
       (block loop
-        (do-swfy-symbols (symbol regexp)
+        (do-swfy-symbols (symbol datap regexp)
           (multiple-value-bind (timedoutp rest-time-limit) (timedout2p)
             (cond (timedoutp (return-from loop))
                   (t
