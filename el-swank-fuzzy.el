@@ -194,6 +194,61 @@ matches, all other things being equal."
        (+ (reduce #'+ chunk-scores) length-score)
        (list (mapcar* #'list chunk-scores completion) length-score)))))
 
+
+;;;;
+(defstruct (swfy-fuzzy-matching (:conc-name swfy-fuzzy-matching.)
+                                (:constructor swfy-make-fuzzy-matching0))
+  symbol
+  score
+  symbol-chunks)
+(defun swfy-make-fuzzy-matching (symbol score symbol-chunks)
+  (swfy-make-fuzzy-matching0 :symbol symbol
+                             :score score
+                             :symbol-chunks symbol-chunks))
+
+(defmacro* do-swfy-symbols ((symbol regexp) &body body)
+  `(mapatoms (lambda (,symbol)
+               (when (string-match ,regexp (symbol-name ,symbol))
+                 (progn ,@body)))
+             obarray))
+
+(defsubst swfy-negate-time (y x)
+  (- (truncate (+ (* 10000000 (+ (first y) (second y)))
+                  (third y))
+               10000)
+     (truncate (+ (* 10000000 (+ (first x) (second x)))
+                  (third x))
+               10000)))
+(defmacro* with-swfy-timedout ((name time-in-msec) &body body)
+  (let ((started (gensym)))
+    `(let ((,started (current-time)))
+       (flet ((,name ()
+                (let* ((elapsed (current-time))
+                       (negated (swfy-negate-time elapsed ,started)))
+                  (values (< ,time-in-msec negated)
+                          (- ,time-in-msec negated)))))
+         (progn ,@body)))))
+
+(defun swfy-find-matching-symbols (string time-limit-in-msec)
+  (let ((regexp (format "^%s" (regexp-quote (substring string 0 3))))
+        completions)
+    (with-swfy-timedout (timedout2p time-limit-in-msec)
+      (block loop
+        (do-swfy-symbols (symbol regexp)
+          (multiple-value-bind (timedoutp rest-time-limit) (timedout2p)
+            (cond (timedoutp (return-from loop))
+                  (t
+                   (multiple-value-bind (match-result score)
+                       (swfy-compute-highest-scoring-completion
+                        (substring string 0 3)
+                        (substring (symbol-name symbol) 3))
+                     (when match-result
+                       (push (swfy-make-fuzzy-matching symbol
+                                                       score
+                                                       match-result)
+                             completions))))))))
+      (values completions (max 0 (nth-value 1 (timedout2p)))))))
+
 (dont-compile
   (when (fboundp 'expectations)
     (expectations
