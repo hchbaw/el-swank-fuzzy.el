@@ -241,12 +241,6 @@ matches, all other things being equal."
                           (- ,time-in-msec negated)))))
          (progn ,@body)))))
 
-(defun swfy-generate-matchings (string datap time-in-msec)
-  (multiple-value-bind (results remaining-time)
-      (swfy-find-matching-symbols string datap time-in-msec)
-    (values (sort results 'swfy-fuzzy-matching-greater)
-            (<= remaining-time 0))))
-
 (defun swfy-find-matching-symbols (string datap time-limit-in-msec)
   (let ((regexp (format "^%s" (regexp-quote (substring string 0 3))))
         completions)
@@ -266,6 +260,26 @@ matches, all other things being equal."
                                completions))))))))
       (values completions (nth-value 1 (timedout2p))))))
 
+;;;;
+(defun swfy-convert-matching-for-emacs (matching string)
+  (symbol-name (swfy-fuzzy-matching.symbol matching)))
+(defun swfy-completion-set (string datap time-in-msec)
+  (multiple-value-bind (matchings interrupted-p)
+      (swfy-generate-matchings string datap time-in-msec)
+    (values (map 'list
+                 (lambda (m) (swfy-convert-matching-for-emacs m string))
+                 matchings)
+            interrupted-p)))
+(defun swfy-generate-matchings (string datap time-in-msec)
+  (multiple-value-bind (results remaining-time)
+      (swfy-find-matching-symbols string datap time-in-msec)
+    (values (sort results 'swfy-fuzzy-matching-greater)
+            (<= remaining-time 0))))
+
+(defun* el-swank-fuzzy-completions
+    (string &optional (datap 'fboundp) (time-in-msec 1500))
+  (swfy-completion-set string datap time-in-msec))
+
 (dont-compile
   (when (fboundp 'expectations)
     (expectations
@@ -278,7 +292,8 @@ matches, all other things being equal."
         (let* ((max-lisp-eval-depth most-positive-fixnum)
                (el-swank-fuzzy-recursion-soft-limit 2))
           (length
-          (swfy-compute-most-completions "ZZZZZZ" "ZZZZZZZZZZZZZZZZZZZZZZZ"))))
+           (swfy-compute-most-completions "ZZZZZZ"
+                                          "ZZZZZZZZZZZZZZZZZZZZZZZ"))))
       (desc "swfy-score-completion internal")
       (desc "at-beginning")
       (expect '(10.625 (((10 (0 "*"))) 0.625))
@@ -311,5 +326,5 @@ matches, all other things being equal."
       (expect '(((0 "zz")) 24.7)
         (swfy-compute-highest-scoring-completion "zz" "zzz"))
     )))
- 
+
 (provide 'el-swank-fuzzy)
