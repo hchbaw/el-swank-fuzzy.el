@@ -264,7 +264,7 @@ matches, all other things being equal."
                                                          score
                                                          match-result)
                                completions))))))))
-      (values completions (max 0 (nth-value 1 (timedout2p)))))))
+      (values completions (nth-value 1 (timedout2p))))))
 
 (dont-compile
   (when (fboundp 'expectations)
