@@ -229,12 +229,8 @@ matches, all other things being equal."
        ,@body)))
 
 (defsubst swfy-negate-time (y x)
-  (- (truncate (+ (* 10000000 (+ (first y) (second y)))
-                  (third y))
-               10000)
-     (truncate (+ (* 10000000 (+ (first x) (second x)))
-                  (third x))
-               10000)))
+  (- (truncate (+ (* 10000000 (+ (first y) (second y))) (third y)) 10000)
+     (truncate (+ (* 10000000 (+ (first x) (second x))) (third x)) 10000)))
 (defmacro* with-swfy-timedout ((name time-in-msec) &body body)
   (let ((started (gensym)))
     `(let ((,started (current-time)))
@@ -259,16 +255,15 @@ matches, all other things being equal."
         (do-swfy-symbols (symbol datap regexp)
           (multiple-value-bind (timedoutp rest-time-limit) (timedout2p)
             (cond (timedoutp (return-from loop))
-                  (t
-                   (multiple-value-bind (match-result score)
-                       (swfy-compute-highest-scoring-completion
-                        (substring string 3)
-                        (substring (symbol-name symbol) 3))
-                     (when match-result
-                       (push (swfy-make-fuzzy-matching symbol
-                                                       score
-                                                       match-result)
-                             completions))))))))
+                  (t (multiple-value-bind (match-result score)
+                         (swfy-compute-highest-scoring-completion
+                          (substring string 3)
+                          (substring (symbol-name symbol) 3))
+                       (when match-result
+                         (push (swfy-make-fuzzy-matching symbol
+                                                         score
+                                                         match-result)
+                               completions))))))))
       (values completions (max 0 (nth-value 1 (timedout2p)))))))
 
 (dont-compile
