@@ -240,7 +240,7 @@ matches, all other things being equal."
                   (t
                    (multiple-value-bind (match-result score)
                        (swfy-compute-highest-scoring-completion
-                        (substring string 0 3)
+                        (substring string 3)
                         (substring (symbol-name symbol) 3))
                      (when match-result
                        (push (swfy-make-fuzzy-matching symbol
