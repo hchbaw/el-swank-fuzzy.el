@@ -194,7 +194,26 @@ matches, all other things being equal."
        (+ (reduce #'+ chunk-scores) length-score)
        (list (mapcar* #'list chunk-scores completion) length-score)))))
 
-;;;;
+;;;; Entry point.
+(defun* el-swank-fuzzy-completions
+    (string &optional (filter 'fboundp) (time-in-msec 1500))
+  (swfy-completion-set string filter time-in-msec))
+
+(defun swfy-convert-matching-for-emacs (matching string)
+  (symbol-name (swfy-fuzzy-matching.symbol matching)))
+(defun swfy-completion-set (string filter time-in-msec)
+  (multiple-value-bind (matchings interrupted-p)
+      (swfy-generate-matchings string filter time-in-msec)
+    (values (map 'list
+                 (lambda (m) (swfy-convert-matching-for-emacs m string))
+                 matchings)
+            interrupted-p)))
+(defun swfy-generate-matchings (string filter time-in-msec)
+  (multiple-value-bind (results remaining-time)
+      (swfy-find-matching-symbols string filter time-in-msec)
+    (values (sort results 'swfy-fuzzy-matching-greater)
+            (<= remaining-time 0))))
+
 (defstruct (swfy-fuzzy-matching (:conc-name swfy-fuzzy-matching.)
                                 (:constructor swfy-make-fuzzy-matching0))
   symbol
@@ -260,25 +279,6 @@ matches, all other things being equal."
                                completions))))))))
       (values completions (nth-value 1 (timedout2p))))))
 
-;;;;
-(defun swfy-convert-matching-for-emacs (matching string)
-  (symbol-name (swfy-fuzzy-matching.symbol matching)))
-(defun swfy-completion-set (string filter time-in-msec)
-  (multiple-value-bind (matchings interrupted-p)
-      (swfy-generate-matchings string filter time-in-msec)
-    (values (map 'list
-                 (lambda (m) (swfy-convert-matching-for-emacs m string))
-                 matchings)
-            interrupted-p)))
-(defun swfy-generate-matchings (string filter time-in-msec)
-  (multiple-value-bind (results remaining-time)
-      (swfy-find-matching-symbols string filter time-in-msec)
-    (values (sort results 'swfy-fuzzy-matching-greater)
-            (<= remaining-time 0))))
-
-(defun* el-swank-fuzzy-completions
-    (string &optional (filter 'fboundp) (time-in-msec 1500))
-  (swfy-completion-set string filter time-in-msec))
 
 (dont-compile
   (when (fboundp 'expectations)
