@@ -194,8 +194,26 @@ matches, all other things being equal."
        (+ (reduce #'+ chunk-scores) length-score)
        (list (mapcar* #'list chunk-scores completion) length-score)))))
 
+;;; borrowed from slime.el
+(defun swfy-rcurry (fun &rest args)
+  `(lambda (&rest more) (apply ',fun (append more ',args))))
+(defmacro* with-swfy-struct ((conc-name &rest slots) struct &body body)
+  "Like with-slots but works only for structs.
+\(fn (CONC-NAME &rest SLOTS) STRUCT &body BODY)"
+  (flet ((reader (slot) (intern (concat (symbol-name conc-name)
+                                        (symbol-name slot)))))
+    (let ((struct-var (gensym "struct")))
+      `(let ((,struct-var ,struct))
+         (symbol-macrolet
+             ,(mapcar (lambda (slot)
+                        (etypecase slot
+                          (symbol `(,slot (,(reader slot) ,struct-var)))
+                          (cons `(,(first slot) (,(reader (second slot))
+                                                  ,struct-var)))))
+                      slots)
+           . ,body)))))
+
 ;;;; Entry point.
-(defalias 'swfy-rcurry 'rcurry)
 (defun* el-swank-fuzzy-completions
     (string &optional (time-in-msec 1500) (filter 'fboundp))
   (let* ((plen (swfy-prefix-length-of string))
@@ -210,14 +228,6 @@ matches, all other things being equal."
                           (third xs)))
               xs))))
     (swfy-completion-set string time-in-msec find-symbols convert-matchings)))
-'(defun swfy-cache-symbol-scores (h)
-  (prog1 h
-    (mapatoms (lambda (sym)
-                (let ((s (symbol-name sym)))
-                  (unless (equal s "")
-                    (if (gethash (aref s 0) h)
-                        (incf (gethash (aref s 0) h))
-                      (puthash (aref s 0) 1 h))))))))
 '(defun swfy-prefix-length-of (string)
   (case (aref string 0)
     ((?c ?s ?a ?o ?e) 2)
@@ -229,9 +239,8 @@ matches, all other things being equal."
 (defun swfy-completion-set (string time-in-msec find-symbols convert-matchings)
   (multiple-value-bind (matchings interrupted-p)
       (swfy-generate-matchings string time-in-msec find-symbols)
-    (values (map 'list
-                 (lambda (m) (funcall convert-matchings m string))
-                 matchings)
+    (values (mapcar (lambda (m) (funcall convert-matchings m string))
+                    matchings)
             interrupted-p)))
 (defun swfy-generate-matchings (string time-in-msec find-symbols)
   (multiple-value-bind (results remaining-time)
@@ -239,13 +248,13 @@ matches, all other things being equal."
     (values (sort results 'swfy-fuzzy-matching-greater)
             (<= remaining-time 0))))
 (defun swfy-convert-matching-for-emacs (matching string added-length)
-  (with-struct (swfy-fuzzy-matching. symbol score symbol-chunks) matching
+  (with-swfy-struct (swfy-fuzzy-matching. symbol score symbol-chunks) matching
     (list (symbol-name symbol)
           (format "%.2f" score)
           (mapcar (lambda (chunk)
                     (list (+ added-length (first chunk)) (second chunk)))
                   symbol-chunks)
-          "-------")))
+          "-")))
 
 (defstruct (swfy-fuzzy-matching (:conc-name swfy-fuzzy-matching.)
                                 (:constructor swfy-make-fuzzy-matching0))
