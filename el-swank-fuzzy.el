@@ -195,6 +195,8 @@ matches, all other things being equal."
        (list (mapcar* #'list chunk-scores completion) length-score)))))
 
 ;;; borrowed from slime.el
+(defun swfy-curry (fun &rest args)
+  `(lambda (&rest more) (apply ',fun (append ',args more))))
 (defun swfy-rcurry (fun &rest args)
   `(lambda (&rest more) (apply ',fun (append more ',args))))
 (defmacro* with-swfy-struct ((conc-name &rest slots) struct &body body)
@@ -369,3 +371,4 @@ matches, all other things being equal."
     )))
 
 (provide 'el-swank-fuzzy)
+;;; el-swank-fuzzy.el ends here
