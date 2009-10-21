@@ -241,12 +241,12 @@ matches, all other things being equal."
                           (- ,time-in-msec negated)))))
          (progn ,@body)))))
 
-(defun swfy-find-matching-symbols (string datap time-limit-in-msec)
+(defun swfy-find-matching-symbols (string filter time-limit-in-msec)
   (let ((regexp (format "^%s" (regexp-quote (substring string 0 3))))
         completions)
     (with-swfy-timedout (timedout2p time-limit-in-msec)
       (block loop
-        (do-swfy-symbols (symbol datap regexp)
+        (do-swfy-symbols (symbol filter regexp)
           (multiple-value-bind (timedoutp rest-time-limit) (timedout2p)
             (cond (timedoutp (return-from loop))
                   (t (multiple-value-bind (match-result score)
@@ -263,22 +263,22 @@ matches, all other things being equal."
 ;;;;
 (defun swfy-convert-matching-for-emacs (matching string)
   (symbol-name (swfy-fuzzy-matching.symbol matching)))
-(defun swfy-completion-set (string datap time-in-msec)
+(defun swfy-completion-set (string filter time-in-msec)
   (multiple-value-bind (matchings interrupted-p)
-      (swfy-generate-matchings string datap time-in-msec)
+      (swfy-generate-matchings string filter time-in-msec)
     (values (map 'list
                  (lambda (m) (swfy-convert-matching-for-emacs m string))
                  matchings)
             interrupted-p)))
-(defun swfy-generate-matchings (string datap time-in-msec)
+(defun swfy-generate-matchings (string filter time-in-msec)
   (multiple-value-bind (results remaining-time)
-      (swfy-find-matching-symbols string datap time-in-msec)
+      (swfy-find-matching-symbols string filter time-in-msec)
     (values (sort results 'swfy-fuzzy-matching-greater)
             (<= remaining-time 0))))
 
 (defun* el-swank-fuzzy-completions
-    (string &optional (datap 'fboundp) (time-in-msec 1500))
-  (swfy-completion-set string datap time-in-msec))
+    (string &optional (filter 'fboundp) (time-in-msec 1500))
+  (swfy-completion-set string filter time-in-msec))
 
 (dont-compile
   (when (fboundp 'expectations)
