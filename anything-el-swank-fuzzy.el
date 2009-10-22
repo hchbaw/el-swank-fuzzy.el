@@ -62,41 +62,47 @@ proper text properties."
       (insert "\n"))))
 
 (defun aeswf-init-candidates-buffer (pred time-limie-in-msec)
-  (aeswf-init-candidates-buffer-base (swfy-curry 'el-swank-fuzzy-completions
-                                                 anything-complete-target
-                                                 time-limie-in-msec
-                                                 pred)
-                                     (lambda (compleions _b put-property)
+  (aeswf-init-candidates-buffer-base (apply-partially 'el-swank-fuzzy-completions
+                                                      anything-complete-target
+                                                      time-limie-in-msec
+                                                      pred)
+                                     (lambda (completions _b put-property)
                                        (dolist (c completions)
                                          (aeswf-insert-completion-choice c)
                                          (funcall put-property (car c))))))
 
 (defvar anything-el-swank-fuzzy-complete-functions
   `((name . "el-swank-fuzzy functions")
-    (init . ,(swfy-curry 'aeswf-init-candidates-buffer 'fboundp 1500))
+    (init . ,(apply-partially 'aeswf-init-candidates-buffer 'fboundp 1500))
     (candidates-in-buffer)
     (get-line . buffer-substring)
     (type . complete-function)))
 (defvar anything-el-swank-fuzzy-complete-variables
   `((name . "el-swank-fuzzy variables")
-    (init . ,(swfy-curry 'aeswf-init-candidates-buffer 'boundp 1500))
+    (init . ,(apply-partially 'aeswf-init-candidates-buffer 'boundp 1500))
     (candidates-in-buffer)
     (get-line . buffer-substring)
     (type . complete-variable)))
-(defun aeswf-complete (source)
-  (aeswf-anything-complete source
+(defun aeswf-complete (sources)
+  (aeswf-anything-complete sources
                            (buffer-substring-no-properties
                             (point)
                             (save-excursion
                               (let ((b (bounds-of-thing-at-point 'symbol)))
                                 (goto-char (car b))
                                 (point))))))
+
+(defvar anything-el-swank-fuzzy-complete-functions-sources
+  '(anything-el-swank-fuzzy-complete-functions))
 (defun anything-el-swank-fuzzy-complete-functions ()
   (interactive)
-  (aeswf-complete 'anything-el-swank-fuzzy-complete-functions))
+  (aeswf-complete anything-el-swank-fuzzy-complete-functions-sources))
+
+(defvar anything-el-swank-fuzzy-complete-variables-sources
+  '(anything-el-swank-fuzzy-complete-variables))
 (defun anything-el-swank-fuzzy-complete-variables ()
   (interactive)
-  (aeswf-complete 'anything-el-swank-fuzzy-complete-variables))
+  (aeswf-complete anything-el-swank-fuzzy-complete-variables-sources))
 
 (provide 'anything-el-swank-fuzzy)
 ;;; anything-el-swank-fuzzy.el ends here
