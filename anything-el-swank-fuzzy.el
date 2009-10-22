@@ -15,7 +15,7 @@
     (use-anything-show-completion f '(length anything-complete-target))))
 
 ;; Copied from the anything-complete.el and added an optional parameter
-;; TARGET-IS-DEFAULT-INPUT-P to not defaulting the target for some kind of
+;; TARGET-DEFAULT-INPUT-P to not defaulting the target for some kind of
 ;; the compound/fuzzy completes.
 (defun aeswf-anything-noresume (&optional any-sources any-input any-prompt any-resume any-preselect any-buffer)
   (let (anything-last-sources anything-compiled-sources anything-last-buffer)
