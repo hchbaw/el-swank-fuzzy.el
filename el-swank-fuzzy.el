@@ -1,5 +1,48 @@
 ;;; el-swank-fuzzy.el --- fuzzy symbol completion.
 
+;; Copyright (C) 2009 Brian Downing <bdowning@lavos.net>
+;; Copyright (C) 2009 Tobias C. Rittweiler <tcr@freebits.de>
+;; Copyright (C) 2009 Takeshi Banse <takebi@laafc.net>
+;; Original CL implementation authors (from swank-fuzzy.lisp) below,
+;; Original Authors: Brian Downing <bdowning@lavos.net>
+;;                   Tobias C. Rittweiler <tcr@freebits.de>
+;;                   and others
+;; Author: Takeshi Banse <takebi@laafc.net>
+;; keywords: matching, completion, string
+
+;; This program is free software; you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation; either version 3, or (at your option)
+;; any later version.
+
+;; This file is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+
+;; You should have received a copy of the GNU General Public License
+;; along with GNU Emacs; see the file COPYING.  If not, write to
+;; the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+;; Boston, MA 02110-1301, USA.
+
+;;; Commentary:
+;;
+;; This program is based on the swank-fuzzy.lisp.
+;; Thanks the CL implementation authors for that useful software.
+
+;; I love the SLIME/swank's FUZZY-COMPLETIONS. It provides fairly sane
+;; completion results neary invariably. So I translated the original CL
+;; implementation into Emacs Lisp. Thankfully, the core part of the scoring
+;; algorithm in this package is almost identical that in the CL implementation.
+;; (Thanks Emacs Lisp cl package!). Visit the SLIME site
+;; http://common-lisp.net/project/slime/
+
+;; This file provides a single function, `el-swank-fuzzy-completions',
+;; which you can use for the SLIME/swank's FUZZY-COMPLETIONS alike completion
+;; function for Emacs Lisp.
+
+;;; Code:
+
 (require 'cl)
 
 (defvar el-swank-fuzzy-recursion-soft-limit 30
@@ -171,9 +214,9 @@ matches, all other things being equal."
            (score-or-percentage-of-previous (base-score pos chunk-pos)
              (if (zerop chunk-pos) 
                  base-score 
-                 (max base-score 
-                      (+ (* (score-char (1- pos) (1- chunk-pos)) 0.85)
-                         (expt 1.2 chunk-pos)))))
+               (max base-score
+                    (+ (* (score-char (1- pos) (1- chunk-pos)) 0.85)
+                       (expt 1.2 chunk-pos)))))
            (score-char (pos chunk-pos)
              (score-or-percentage-of-previous
               (cond ((at-beginning-p pos)         10)
@@ -195,8 +238,6 @@ matches, all other things being equal."
        (list (mapcar* #'list chunk-scores completion) length-score)))))
 
 ;;; borrowed from slime.el
-(defun swfy-curry (fun &rest args)
-  `(lambda (&rest more) (apply ',fun (append ',args more))))
 (defun swfy-rcurry (fun &rest args)
   `(lambda (&rest more) (apply ',fun (append more ',args))))
 (defmacro* with-swfy-struct ((conc-name &rest slots) struct &body body)
@@ -217,8 +258,41 @@ matches, all other things being equal."
 
 ;;;; Entry point.
 (defun* el-swank-fuzzy-completions
-    (string &optional (time-in-msec 1500) (filter 'fboundp))
-  (let* ((plen (swfy-prefix-length-of string))
+    (string &optional (time-in-msec 1500) (filter 'fboundp) (prefix-length (lambda (_string) 2)))
+"Returns a list of two values:
+
+  An list of fuzzy completions for a symbol designator STRING.
+  The list will be started by score, most likely match first.
+
+  A flag that indicates whether or not TIME-IN-MSEC has
+  been exhausted during computations. If that parameter's value is
+  NIL or 0, no time limit is assumed.
+
+The main result is a list of completion objects, where a completion
+object is:
+
+    (COMPLETED-STRING SCORE (&rest CHUNKS) CLASSIFICATION-STRING)
+
+where a CHUNK is a description of a matched substring:
+
+    (OFFSET SUBSTRING)
+
+and FLAGS is short string describing properties of the symbol (see
+CLASSIFY-SYMBOL and STRING-CLASSIFICATION->STRING. Currently does
+not contain anything.)
+
+E.g., completing \"mvb\" in a package that uses COMMON-LISP would
+return something like:
+
+    ((\"multiple-value-bind\" 26.588236 ((0 \"m\") (9 \"v\") (15 \"b\"))
+     \"dummy\")
+     ...)
+
+The fuzzy match will be performed against the symbols satisfying FILTER.
+
+PREFIX-LENGTH is function called one argument STRING returns the length
+of substring to which fuzzy match should _not_ be performed."
+  (let* ((plen (funcall prefix-length string))
          (find-symbols
           (swfy-rcurry 'swfy-find-matching-symbols-with-prefix-length
                        filter plen))
@@ -230,13 +304,6 @@ matches, all other things being equal."
                           (third xs)))
               xs))))
     (swfy-completion-set string time-in-msec find-symbols convert-matchings)))
-'(defun swfy-prefix-length-of (string)
-  (case (aref string 0)
-    ((?c ?s ?a ?o ?e) 2)
-    ((?w ?m ?f ?d ?i ?t ?p ?v ?b ?r) 2)
-    (t 1)))
-(defun swfy-prefix-length-of (string)
-  2)
 
 (defun swfy-completion-set (string time-in-msec find-symbols convert-matchings)
   (multiple-value-bind (matchings interrupted-p)
@@ -260,9 +327,9 @@ matches, all other things being equal."
 
 (defstruct (swfy-fuzzy-matching (:conc-name swfy-fuzzy-matching.)
                                 (:constructor swfy-make-fuzzy-matching0))
-  symbol
-  score
-  symbol-chunks)
+  symbol         ; The symbol that has been found to match.
+  score          ; The higher the better SYMBOL is a match.
+  symbol-chunks) ; Chunks pertaining to SYMBOL's name.
 (defun swfy-make-fuzzy-matching (symbol score symbol-chunks)
   (swfy-make-fuzzy-matching0 :symbol symbol
                              :score score
@@ -306,11 +373,11 @@ matches, all other things being equal."
 (defun swfy-find-matching-symbols-with-prefix-length (string time-limit-in-msec filter length)
   (let ((regexp (format "^%s" (regexp-quote (substring string 0 length))))
         completions)
-    (with-swfy-timedout (timedout2p time-limit-in-msec)
+    (with-swfy-timedout (timedout2-p time-limit-in-msec)
       (block loop
         (do-swfy-symbols1 (symbol filter regexp)
-          (multiple-value-bind (timedoutp rest-time-limit) (timedout2p)
-            (cond (timedoutp (return-from loop))
+          (multiple-value-bind (timedout-p rest-time-limit) (timedout2-p)
+            (cond (timedout-p (return-from loop))
                   (t (multiple-value-bind (match-result score)
                          (swfy-compute-highest-scoring-completion
                           (substring string length)
@@ -320,7 +387,7 @@ matches, all other things being equal."
                                                          score
                                                          match-result)
                                completions))))))))
-      (values completions (nth-value 1 (timedout2p))))))
+      (values completions (nth-value 1 (timedout2-p))))))
 
 
 (dont-compile
