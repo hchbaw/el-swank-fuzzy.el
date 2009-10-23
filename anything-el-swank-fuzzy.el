@@ -71,18 +71,75 @@ proper text properties."
                                          (aeswf-insert-completion-choice c)
                                          (funcall put-property (car c))))))
 
+;;; anything-show-completion.el extension.
+(defun aeswf-transformer-prepend-spacer0 (prepend candidates source)
+  (mapcar (lambda (cand)
+            (cons (funcall prepend cand)
+                  (or (get-text-property 0 'anything-realvalue cand) cand)))
+          candidates))
+(defun* aeswf-current-column (&optional (target anything-complete-target)
+                                        (buffer anything-current-buffer))
+  (with-current-buffer buffer
+    (save-excursion
+      (backward-char (string-width target))
+      (let ((col (alcs-current-physical-column)))
+        (if (< col 0) ;; XXX: WTF? Fall off?
+            (- (point) (save-excursion (vertical-motion -1) (point)))
+          col)))))
+
+(require 'term) ;; term-window-width
+(defalias 'aeswf-window-width 'term-window-width)
+(defvar aeswf-transformer-prepend-spacer-saved-column nil)
+(defun* aeswf-transformer-prepend-spacer-compute
+    (candidates source &optional (compute (lambda (col sw ww)
+                                            (- col (- (+ col sw) ww)))))
+  (flet ((save-column-maybe ()
+           (or aeswf-transformer-prepend-spacer-saved-column
+               (setq aeswf-transformer-prepend-spacer-saved-column
+                     (let ((ww (alcs-window-width))
+                           (sw (reduce (lambda (acc x)
+                                         (max acc (string-width x)))
+                                       candidates
+                                       :initial-value 0))
+                           (col (alcs-current-column)))
+                       (if (< (+ col sw) ww)
+                           col
+                         (funcall compute col sw ww)))))))
+    (if candidates
+        (let ((column (save-column-maybe)))
+          (aeswf-transformer-prepend-spacer0 (lambda (cand)
+                                               (concat (make-string column ? )
+                                                       cand))
+                                               candidates
+                                               source))
+      candidates)))
+(defun aeswf-transformer-prepend-spacer-saved-column-clear ()
+  (setq aeswf-transformer-prepend-spacer-saved-column nil))
+(when (and (boundp 'anything-show-completion-activate))
+  (add-hook 'anything-cleanup-hook 'aeswf-transformer-prepend-spacer-saved-column-clear))
+
+(defun aeswf-transformer-prepend-spacer-maybe (candidates source)
+  (if (and (boundp 'anything-show-completion-activate)
+           anything-show-completion-activate)
+      (let ((compute (lambda (col sw ww)
+                       (- ww sw))))
+        (aeswf-transformer-prepend-spacer-compute candidates source compute))
+    candidates))
+
 (defvar anything-el-swank-fuzzy-complete-functions
   `((name . "el-swank-fuzzy functions")
     (init . ,(apply-partially 'aeswf-init-candidates-buffer 'fboundp 1500))
     (candidates-in-buffer)
     (get-line . buffer-substring)
-    (type . complete-function)))
+    (type . complete-function)
+    (filtered-candidate-transformer aeswf-transformer-prepend-spacer-maybe)))
 (defvar anything-el-swank-fuzzy-complete-variables
   `((name . "el-swank-fuzzy variables")
     (init . ,(apply-partially 'aeswf-init-candidates-buffer 'boundp 1500))
     (candidates-in-buffer)
     (get-line . buffer-substring)
-    (type . complete-variable)))
+    (type . complete-variable)
+    (filtered-candidate-transformer aeswf-transformer-prepend-spacer-maybe)))
 (defun aeswf-complete (sources)
   (aeswf-anything-complete sources
                            (buffer-substring-no-properties
