@@ -4,15 +4,72 @@
 ;; Author: Takeshi Banse <takebi@laafc.net>
 ;; Keywords: matching, convenience, anything
 
+;; This program is free software; you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation; either version 3, or (at your option)
+;; any later version.
+
+;; This file is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+
+;; You should have received a copy of the GNU General Public License
+;; along with GNU Emacs; see the file COPYING.  If not, write to
+;; the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+;; Boston, MA 02110-1301, USA.
+
+;;; Commentary:
+;;
+;; Some Anything configurations for using the el-swank-fuzzy.el.
+
+;;; Installation:
+;;
+;; Put the el-swank-fuzzy.el, anything.el and anything-complete.el to your
+;; load-path.
+
+;;; Commands:
+;;
+;; Below are complete command list:
+;;
+;;  `anything-el-swank-fuzzy-complete-functions'
+;;    `lisp-complete-symbol' for functions using `anything'.
+;;  `anything-el-swank-fuzzy-complete-variables'
+;;    `lisp-complete-symbol' for variables using `anything'.
+;;
+;;; Customizable Options:
+;;
+;; Below are customizable option list:
+;;
+;;  `anything-el-swank-fuzzy-completions-prefix-length'
+;;    *Number of the prefix length which is the length of substring to which
+;;    default = 2
+;;  `anything-el-swank-fuzzy-completions-time-in-msec'
+;;    *Number of the time limit spent (in msec) while gathering completions in
+;;    default = 1500
+
 ;;; Code:
 
+(require 'anything)
 (require 'anything-complete)
+(require 'cl)
 (require 'el-swank-fuzzy)
 
 (when (require 'anything-show-completion nil t)
   (dolist (f '(anything-el-swank-fuzzy-complete-functions
                anything-el-swank-fuzzy-complete-variables))
     (use-anything-show-completion f '(length anything-complete-target))))
+
+(defcustom anything-el-swank-fuzzy-completions-prefix-length 2
+  "*Number of the prefix length which is the length of substring to which
+the prefix match should be performed in `el-swank-fuzzy-completions'."
+  :type 'integer
+  :group 'anything-complete)
+(defcustom anything-el-swank-fuzzy-completions-time-in-msec 1500
+  "*Number of the time limit spent (in msec) while gathering completions in
+`el-swank-fuzzy-completions'."
+  :type 'integer
+  :group 'anything-complete)
 
 ;; Copied from the anything-complete.el and added an optional parameter
 ;; TARGET-DEFAULT-INPUT-P to not defaulting the target for some kind of
@@ -61,15 +118,18 @@ proper text properties."
                            'face 'bold))
       (insert "\n"))))
 
-(defun aeswf-init-candidates-buffer (pred time-limie-in-msec)
-  (aeswf-init-candidates-buffer-base (apply-partially 'el-swank-fuzzy-completions
-                                                      anything-complete-target
-                                                      time-limie-in-msec
-                                                      pred)
-                                     (lambda (completions _b put-property)
-                                       (dolist (c completions)
-                                         (aeswf-insert-completion-choice c)
-                                         (funcall put-property (car c))))))
+(defun aeswf-init-candidates-buffer (pred)
+  (let ((complete
+         (apply-partially 'el-swank-fuzzy-completions
+                          anything-complete-target
+                          anything-el-swank-fuzzy-completions-time-in-msec
+                          pred
+                          anything-el-swank-fuzzy-completions-prefix-length)))
+    (aeswf-init-candidates-buffer-base complete
+                                       (lambda (completions _b put-property)
+                                         (dolist (c completions)
+                                           (aeswf-insert-completion-choice c)
+                                           (funcall put-property (car c)))))))
 
 ;;; anything-show-completion.el extension.
 (defun aeswf-transformer-prepend-spacer0 (prepend candidates source)
@@ -128,36 +188,47 @@ proper text properties."
 
 (defvar anything-el-swank-fuzzy-complete-functions
   `((name . "el-swank-fuzzy functions")
-    (init . ,(apply-partially 'aeswf-init-candidates-buffer 'fboundp 1500))
+    (init . ,(apply-partially 'aeswf-init-candidates-buffer 'fboundp))
     (candidates-in-buffer)
     (get-line . buffer-substring)
     (type . complete-function)
     (filtered-candidate-transformer aeswf-transformer-prepend-spacer-maybe)))
 (defvar anything-el-swank-fuzzy-complete-variables
   `((name . "el-swank-fuzzy variables")
-    (init . ,(apply-partially 'aeswf-init-candidates-buffer 'boundp 1500))
+    (init . ,(apply-partially 'aeswf-init-candidates-buffer 'boundp))
     (candidates-in-buffer)
     (get-line . buffer-substring)
     (type . complete-variable)
     (filtered-candidate-transformer aeswf-transformer-prepend-spacer-maybe)))
 (defun aeswf-complete (sources)
-  (aeswf-anything-complete sources
-                           (buffer-substring-no-properties
-                            (point)
-                            (save-excursion
-                              (let ((b (bounds-of-thing-at-point 'symbol)))
-                                (goto-char (car b))
-                                (point))))))
+  (flet ((get-input ()
+           (buffer-substring-no-properties
+            (point)
+            (save-excursion
+              (let ((b (bounds-of-thing-at-point 'symbol)))
+                (goto-char (car b))
+                (point))))))
+    (let ((input (get-input)))
+      (if (and input
+               (< anything-el-swank-fuzzy-completions-prefix-length
+                  (length input)))
+          (aeswf-anything-complete sources input)
+        (message (format "%s: at least %d chars needed:\"%s\""
+                         this-command
+                         (1+ anything-el-swank-fuzzy-completions-prefix-length)
+                         input))))))
 
 (defvar anything-el-swank-fuzzy-complete-functions-sources
   '(anything-el-swank-fuzzy-complete-functions))
 (defun anything-el-swank-fuzzy-complete-functions ()
+  "`lisp-complete-symbol' for functions using `anything'."
   (interactive)
   (aeswf-complete anything-el-swank-fuzzy-complete-functions-sources))
 
 (defvar anything-el-swank-fuzzy-complete-variables-sources
   '(anything-el-swank-fuzzy-complete-variables))
 (defun anything-el-swank-fuzzy-complete-variables ()
+  "`lisp-complete-symbol' for variables using `anything'."
   (interactive)
   (aeswf-complete anything-el-swank-fuzzy-complete-variables-sources))
 
