@@ -258,8 +258,8 @@ matches, all other things being equal."
 
 ;;;; Entry point.
 (defun* el-swank-fuzzy-completions
-    (string &optional (time-in-msec 1500) (filter 'fboundp) (prefix-length (lambda (_string) 2)))
-"Returns a list of two values:
+    (string &optional (time-in-msec 1500) (filter 'fboundp) (prefix-length 2))
+  "Returns a list of two values:
 
   An list of fuzzy completions for a symbol designator STRING.
   The list will be started by score, most likely match first.
@@ -290,19 +290,18 @@ return something like:
 
 The fuzzy match will be performed against the symbols satisfying FILTER.
 
-PREFIX-LENGTH is function called one argument STRING returns the length
-of substring to which fuzzy match should _not_ be performed."
-  (let* ((plen (funcall prefix-length string))
-         (find-symbols
-          (swfy-rcurry 'swfy-find-matching-symbols-with-prefix-length
-                       filter plen))
-         (convert-matchings
-          (lambda (m s)
-            (let ((xs (swfy-convert-matching-for-emacs m s plen)))
-              (setf (third xs)
-                    (cons (list 0 (substring string 0 plen))
-                          (third xs)))
-              xs))))
+PREFIX-LENGTH is the STRING's length of substring to which the prefix
+match should be performed before the fuzzy match."
+  (let ((find-symbols
+         (swfy-rcurry 'swfy-find-matching-symbols-with-prefix-length
+                      filter prefix-length))
+        (convert-matchings
+         (lambda (m s)
+           (let ((xs (swfy-convert-matching-for-emacs m s prefix-length)))
+             (setf (third xs)
+                   (cons (list 0 (substring string 0 prefix-length))
+                         (third xs)))
+             xs))))
     (swfy-completion-set string time-in-msec find-symbols convert-matchings)))
 
 (defun swfy-completion-set (string time-in-msec find-symbols convert-matchings)
@@ -383,8 +382,7 @@ of substring to which fuzzy match should _not_ be performed."
                           (substring string length)
                           (substring (symbol-name symbol) length))
                        (when match-result
-                         (push (swfy-make-fuzzy-matching symbol
-                                                         score
+                         (push (swfy-make-fuzzy-matching symbol score
                                                          match-result)
                                completions))))))))
       (values completions (nth-value 1 (timedout2-p))))))
