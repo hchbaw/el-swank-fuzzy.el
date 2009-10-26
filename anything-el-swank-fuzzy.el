@@ -42,11 +42,16 @@
 ;; Below are customizable option list:
 ;;
 ;;  `anything-el-swank-fuzzy-completions-prefix-length'
-;;    *Number of the prefix length which is the length of substring to which
+;;    *Number of the prefix length which is the length of substring to which the prefix match should be performed in `el-swank-fuzzy-completions'.
 ;;    default = 2
 ;;  `anything-el-swank-fuzzy-completions-time-in-msec'
-;;    *Number of the time limit spent (in msec) while gathering completions in
+;;    *Number of the time limit spent (in msec) while gathering completions in `el-swank-fuzzy-completions'.
 ;;    default = 1500
+
+;;; History:
+
+;; v0.1.0
+;; Initial version.
 
 ;;; Code:
 
@@ -61,13 +66,11 @@
     (use-anything-show-completion f '(length anything-complete-target))))
 
 (defcustom anything-el-swank-fuzzy-completions-prefix-length 2
-  "*Number of the prefix length which is the length of substring to which
-the prefix match should be performed in `el-swank-fuzzy-completions'."
+  "*Number of the prefix length which is the length of substring to which the prefix match should be performed in `el-swank-fuzzy-completions'."
   :type 'integer
   :group 'anything-complete)
 (defcustom anything-el-swank-fuzzy-completions-time-in-msec 1500
-  "*Number of the time limit spent (in msec) while gathering completions in
-`el-swank-fuzzy-completions'."
+  "*Number of the time limit spent (in msec) while gathering completions in `el-swank-fuzzy-completions'."
   :type 'integer
   :group 'anything-complete)
 
