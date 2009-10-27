@@ -134,13 +134,13 @@ proper text properties."
                            'face 'bold))
       (insert "\n"))))
 
-(defun aeswf-init-candidates-buffer (pred)
+(defun* aeswf-init-candidates-buffer (pred &optional (prefix-length anything-el-swank-fuzzy-completions-prefix-length))
   (let ((complete
          (apply-partially 'el-swank-fuzzy-completions
                           anything-complete-target
                           anything-el-swank-fuzzy-completions-time-in-msec
                           pred
-                          anything-el-swank-fuzzy-completions-prefix-length)))
+                          prefix-length)))
     (aeswf-init-candidates-buffer-base complete
                                        (lambda (completions _b put-property)
                                          (dolist (c completions)
