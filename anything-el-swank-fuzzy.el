@@ -104,18 +104,18 @@
     (aeswf-anything-noresume sources (if target-default-input-p target nil)
                              nil nil nil "*anything complete*")))
 
-(defun aeswf-init-candidates-buffer-base (complete insert)
-  (let ((put-text-property1 (lambda (s)
-                              (put-text-property (point-at-bol 0)
-                                                 (point-at-eol 0)
-                                                 'anything-realvalue
-                                                 s))))
-    (let* ((completion-result (with-current-buffer anything-current-buffer
-                                (funcall complete)))
-           (completions (first completion-result))
-           (base  (second completion-result)))
-      (with-current-buffer (anything-candidate-buffer 'global)
-        (funcall insert completions base put-text-property1)))))
+(defun aeswf-put-any-realvalue-property (real)
+  (put-text-property (point-at-bol 0) (point-at-eol 0)
+                     'anything-realvalue
+                     real))
+(defun* aeswf-init-candidates-buffer-base
+    (complete insert &optional (put-text-property1 'aeswf-put-any-realvalue-property))
+  (let* ((completion-result (with-current-buffer anything-current-buffer
+                              (funcall complete)))
+         (completions (first completion-result))
+         (base  (second completion-result)))
+    (with-current-buffer (anything-candidate-buffer 'global)
+      (funcall insert completions base put-text-property1))))
 
 ;;; borrowed from swank-fuzzy.el and edited.
 (defun aeswf-insert-completion-choice (completion &optional _max-length)
@@ -251,39 +251,40 @@ proper text properties."
 
 ;;; hybrid completion.
 (defun aeswf-complete-symbol-meta-source-init ()
-  (multiple-value-bind (completions _interrupted-p)
-      (el-swank-fuzzy-completions
-       anything-complete-target
-       anything-el-swank-fuzzy-completions-time-in-msec
-       (lambda (s) (or (boundp s) (fboundp s)))
-       anything-el-swank-fuzzy-completions-prefix-length)
-    (loop for c in completions
-          for sym = (intern (car c))
-          with fs = nil
-          with bs = nil
-          when (fboundp sym)
-          collect c into fs
-          when (boundp sym)
-          collect c into bs
-          finally do
-          (flet ((source (str type completions)
-                   `((name . ,(format "el-swank-fuzzy %s" str))
-                     (init
-                      . (lambda ()
-                          (aeswf-init-candidates-buffer-base
-                           (lambda () (values ',completions nil))
-                           (lambda (completions _b put-property)
-                             (dolist (c completions)
-                               (aeswf-insert-completion-choice c)
-                               (funcall put-property (car c)))))))
-                     (candidates-in-buffer)
-                     (get-line . buffer-substring)
-                     (type . ,type)
-                     (filtered-candidate-transformer
-                      aeswf-transformer-prepend-spacer-maybe))))
-            (anything-set-sources
-             (list (source "functions" 'complete-function fs)
-                   (source "variables" 'complete-variable bs)))))))
+  (flet ((init-candidate-buffer (name)
+           (let ((anything-source-name (format "el-swank-fuzzy %s" name)))
+             (anything-candidate-buffer 'global)))
+         (insert-candidate (buffer completion)
+           (with-current-buffer buffer
+             (aeswf-insert-completion-choice completion)
+             (aeswf-put-any-realvalue-property (car completion)))))
+    (multiple-value-bind (completions _interrupted-p)
+        (el-swank-fuzzy-completions
+         anything-complete-target
+         anything-el-swank-fuzzy-completions-time-in-msec
+         (lambda (s) (or (boundp s) (fboundp s)))
+         anything-el-swank-fuzzy-completions-prefix-length)
+      (loop for c in completions
+            for sym = (intern (car c))
+            with fs = nil
+            with bs = nil
+            with fbuffer = (init-candidate-buffer "functions")
+            with bbuffer = (init-candidate-buffer "variables")
+            when (fboundp sym)
+            do (insert-candidate fbuffer c)
+            when (boundp sym)
+            do (insert-candidate bbuffer c)
+            finally do
+            (flet ((source (name type completions)
+                     `((name . ,(format "el-swank-fuzzy %s" name))
+                       (candidates-in-buffer)
+                       (get-line . buffer-substring)
+                       (type . ,type)
+                       (filtered-candidate-transformer
+                        aeswf-transformer-prepend-spacer-maybe))))
+              (anything-set-sources
+               (list (source "functions" 'complete-function fs)
+                     (source "variables" 'complete-variable bs))))))))
 
 (defcustom anything-el-swank-fuzzy-lisp-complete-symbol-classify t
   "*If non-nil, use separate source for the functions/variables in `anything-el-swank-fuzzy-lisp-complete-symbol'."
