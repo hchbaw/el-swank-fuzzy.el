@@ -195,6 +195,7 @@ proper text properties."
         (aeswf-transformer-prepend-spacer-compute candidates source compute))
     candidates))
 
+;;; basic completion.
 (defvar anything-el-swank-fuzzy-complete-functions
   `((name . "el-swank-fuzzy functions")
     (init . ,(apply-partially 'aeswf-init-candidates-buffer 'fboundp))
@@ -241,6 +242,7 @@ proper text properties."
   (interactive)
   (aeswf-complete anything-el-swank-fuzzy-complete-variables-sources))
 
+;;; hybrid completion.
 (defun aeswf-complete-symbol-meta-source-init ()
   (multiple-value-bind (completions _interrupted-p)
       (el-swank-fuzzy-completions
@@ -257,8 +259,8 @@ proper text properties."
           when (boundp sym)
           collect c into bs
           finally do
-          (flet ((source (name type completions)
-                   `((name . ,name)
+          (flet ((source (str type completions)
+                   `((name . ,(format "el-swank-fuzzy %s" str))
                      (init
                       . (lambda ()
                           (aeswf-init-candidates-buffer-base
@@ -273,27 +275,29 @@ proper text properties."
                      (filtered-candidate-transformer
                       aeswf-transformer-prepend-spacer-maybe))))
             (anything-set-sources
-             (list
-              (source "el-swank-fuzzy functions" 'complete-function fs)
-              (source "el-swank-fuzzy variables" 'complete-variable bs)))))))
+             (list (source "functions" 'complete-function fs)
+                   (source "variables" 'complete-variable bs)))))))
 
 (defcustom anything-el-swank-fuzzy-lisp-complete-symbol-classify t
   "*If non-nil, use separate source for the functions/variables in `anything-el-swank-fuzzy-lisp-complete-symbol'."
   :type 'boolean
   :group 'anything-complete)
+(defun aeswf-lisp-complete-symbol-source (classifyp)
+  (if classifyp
+      '(((name . "el-swank-fuzzy symbol meta source")
+         (init . aeswf-complete-symbol-meta-source-init)))
+    `(((name . "el-swank-fuzzy symbol")
+       (init . ,(apply-partially 'aeswf-init-candidates-buffer
+                                 (lambda (s) (or (boundp s) (fboundp s)))))
+       (get-line . buffer-substring)
+       (candidates-in-buffer)
+       (type . complete)))))
 (defun anything-el-swank-fuzzy-lisp-complete-symbol ()
   "`lisp-complete-symbol' using `anything'."
   (interactive)
-  (aeswf-complete
-   (if anything-el-swank-fuzzy-lisp-complete-symbol-classify
-       '(((name . "el-swank-fuzzy symbol meta source")
-          (init . aeswf-complete-symbol-meta-source-init)))
-     `(((name . "el-swank-fuzzy symbol")
-        (init . ,(apply-partially 'aeswf-init-candidates-buffer
-                                  (lambda (s) (or (boundp s) (fboundp s)))))
-        (get-line . buffer-substring)
-        (candidates-in-buffer)
-        (type . complete))))))
+  (aeswf-complete (aeswf-lisp-complete-symbol-source
+                   anything-el-swank-fuzzy-lisp-complete-symbol-classify)))
+
 
 (provide 'anything-el-swank-fuzzy)
 ;;; anything-el-swank-fuzzy.el ends here
