@@ -36,10 +36,10 @@
 ;;    `lisp-complete-symbol' for functions using `anything'.
 ;;  `anything-el-swank-fuzzy-complete-variables'
 ;;    `lisp-complete-symbol' for variables using `anything'.
-;;  `anything-el-swank-fuzzy-lisp-complete-symbol'
+;;  `anything-el-swank-fuzzy-complete-symbol'
 ;;    `lisp-complete-symbol' using `anything'.
 ;;  `anything-el-swank-fuzzy-indent-and-complete-symbol'
-;;    Indent the current line and perform `anything-el-swank-fuzzy-lisp-complete-symbol'.
+;;    Indent the current line and perform `anything-el-swank-fuzzy-complete-symbol'.
 ;;  `anything-el-swank-fuzzy-indent-and-complete-functions'
 ;;    Indent the current line and perform `anything-el-swank-fuzzy-complete-functions'.
 ;;  `anything-el-swank-fuzzy-indent-and-complete-variables'
@@ -55,8 +55,8 @@
 ;;  `anything-el-swank-fuzzy-completions-time-in-msec'
 ;;    *Number of the time limit spent (in msec) while gathering completions in `el-swank-fuzzy-completions'.
 ;;    default = 1500
-;;  `anything-el-swank-fuzzy-lisp-complete-symbol-classify'
-;;    *If non-nil, use separate source for the functions/variables in `anything-el-swank-fuzzy-lisp-complete-symbol'.
+;;  `anything-el-swank-fuzzy-complete-symbol-classify'
+;;    *If non-nil, use separate source for the functions/variables in `anything-el-swank-fuzzy-complete-symbol'.
 ;;    default = t
 
 ;;; History:
@@ -75,7 +75,7 @@
 (when (require 'anything-show-completion nil t)
   (dolist (f '(anything-el-swank-fuzzy-complete-functions
                anything-el-swank-fuzzy-complete-variables
-               anything-el-swank-fuzzy-lisp-complete-symbol))
+               anything-el-swank-fuzzy-complete-symbol))
     (use-anything-show-completion f '(length anything-complete-target))))
 
 (defcustom anything-el-swank-fuzzy-completions-prefix-length 2
@@ -286,11 +286,11 @@ proper text properties."
                (list (source "functions" 'complete-function fs)
                      (source "variables" 'complete-variable bs))))))))
 
-(defcustom anything-el-swank-fuzzy-lisp-complete-symbol-classify t
-  "*If non-nil, use separate source for the functions/variables in `anything-el-swank-fuzzy-lisp-complete-symbol'."
+(defcustom anything-el-swank-fuzzy-complete-symbol-classify t
+  "*If non-nil, use separate source for the functions/variables in `anything-el-swank-fuzzy-complete-symbol'."
   :type 'boolean
   :group 'anything-complete)
-(defun aeswf-lisp-complete-symbol-source (classifyp)
+(defun aeswf-complete-symbol-source (classifyp)
   (if classifyp
       '(((name . "el-swank-fuzzy symbol meta source")
          (init . aeswf-complete-symbol-meta-source-init)))
@@ -300,11 +300,11 @@ proper text properties."
        (get-line . buffer-substring)
        (candidates-in-buffer)
        (type . complete)))))
-(defun anything-el-swank-fuzzy-lisp-complete-symbol ()
+(defun anything-el-swank-fuzzy-complete-symbol ()
   "`lisp-complete-symbol' using `anything'."
   (interactive)
-  (aeswf-complete (aeswf-lisp-complete-symbol-source
-                   anything-el-swank-fuzzy-lisp-complete-symbol-classify)))
+  (aeswf-complete (aeswf-complete-symbol-source
+                   anything-el-swank-fuzzy-complete-symbol-classify)))
 
 ;;; indent-and-complete.
 (defun aeswf-echo-arglist ()
@@ -324,9 +324,9 @@ proper text properties."
              (funcall echo-arglist))))))
 
 (defun anything-el-swank-fuzzy-indent-and-complete-symbol ()
-  "Indent the current line and perform `anything-el-swank-fuzzy-lisp-complete-symbol'."
+  "Indent the current line and perform `anything-el-swank-fuzzy-complete-symbol'."
   (interactive)
-  (aeswf-indent-and-funcall 'anything-el-swank-fuzzy-lisp-complete-symbol))
+  (aeswf-indent-and-funcall 'anything-el-swank-fuzzy-complete-symbol))
 (defun anything-el-swank-fuzzy-indent-and-complete-functions ()
   "Indent the current line and perform `anything-el-swank-fuzzy-complete-functions'."
   (interactive)
