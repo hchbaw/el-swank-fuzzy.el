@@ -211,12 +211,12 @@ proper text properties."
     (filtered-candidate-transformer aeswf-transformer-prepend-spacer-maybe)))
 (defun aeswf-complete (sources)
   (flet ((get-input ()
-           (buffer-substring-no-properties
-            (point)
-            (save-excursion
-              (let ((b (bounds-of-thing-at-point 'symbol)))
-                (goto-char (car b))
-                (point))))))
+           (let ((b (bounds-of-thing-at-point 'symbol)))
+             (when b
+               (buffer-substring-no-properties (point)
+                                               (save-excursion
+                                                 (goto-char (car b))
+                                                 (point)))))))
     (let ((input (get-input)))
       (if (and input
                (< anything-el-swank-fuzzy-completions-prefix-length
