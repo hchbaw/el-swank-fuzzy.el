@@ -38,6 +38,12 @@
 ;;    `lisp-complete-symbol' for variables using `anything'.
 ;;  `anything-el-swank-fuzzy-lisp-complete-symbol'
 ;;    `lisp-complete-symbol' using `anything'.
+;;  `anything-el-swank-fuzzy-indent-and-complete-symbol'
+;;    Indent the current line and perform `anything-el-swank-fuzzy-lisp-complete-symbol'.
+;;  `anything-el-swank-fuzzy-indent-and-complete-functions'
+;;    Indent the current line and perform `anything-el-swank-fuzzy-complete-functions'.
+;;  `anything-el-swank-fuzzy-indent-and-complete-variables'
+;;    Indent the current line and perform `anything-el-swank-fuzzy-complete-variables'.
 ;;
 ;;; Customizable Options:
 ;;
@@ -64,6 +70,7 @@
 (require 'anything-complete)
 (require 'cl)
 (require 'el-swank-fuzzy)
+(require 'eldoc)
 
 (when (require 'anything-show-completion nil t)
   (dolist (f '(anything-el-swank-fuzzy-complete-functions
@@ -298,6 +305,35 @@ proper text properties."
   (aeswf-complete (aeswf-lisp-complete-symbol-source
                    anything-el-swank-fuzzy-lisp-complete-symbol-classify)))
 
+;;; indent-and-complete.
+(defun aeswf-echo-arglist ()
+  ;; This makes forcibly update the minibuffer contents for me.
+  (letf (((symbol-function 'eldoc-display-message-p)
+          (lambda () eldoc-mode)))
+    (eldoc-print-current-symbol-info)))
+(defun* aeswf-indent-and-funcall
+    (function &optional (indent-line 'lisp-indent-line) (echo-arglist 'aeswf-echo-arglist))
+  ;;; borrowed from slime.el.
+  (let ((pos (point)))
+    (funcall indent-line)
+    (when (= pos (point))
+      (cond ((save-excursion (re-search-backward "[^() \n\t\r]+\\=" nil t))
+             (funcall function))
+            ((memq (char-before) '(?\t ?\ ))
+             (funcall echo-arglist))))))
+
+(defun anything-el-swank-fuzzy-indent-and-complete-symbol ()
+  "Indent the current line and perform `anything-el-swank-fuzzy-lisp-complete-symbol'."
+  (interactive)
+  (aeswf-indent-and-funcall 'anything-el-swank-fuzzy-lisp-complete-symbol))
+(defun anything-el-swank-fuzzy-indent-and-complete-functions ()
+  "Indent the current line and perform `anything-el-swank-fuzzy-complete-functions'."
+  (interactive)
+  (aeswf-indent-and-funcall 'anything-el-swank-fuzzy-complete-functions))
+(defun anything-el-swank-fuzzy-indent-and-complete-variables ()
+  "Indent the current line and perform `anything-el-swank-fuzzy-complete-variables'."
+  (interactive)
+  (aeswf-indent-and-funcall 'anything-el-swank-fuzzy-complete-variables))
 
 (provide 'anything-el-swank-fuzzy)
 ;;; anything-el-swank-fuzzy.el ends here
