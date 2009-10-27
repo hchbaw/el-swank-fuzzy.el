@@ -61,6 +61,11 @@
 
 ;;; History:
 
+;; v0.2.0
+;; * Add `anything-el-swank-fuzzy-complete-symbol'.
+;; * Add `anything-el-swank-fuzzy-indent-and-complete-symbol' respectively.
+;; Thanks deftsp for the suggestion.
+
 ;; v0.1.0
 ;; Initial version.
 
