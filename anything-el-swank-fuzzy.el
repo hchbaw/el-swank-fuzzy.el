@@ -289,7 +289,8 @@ proper text properties."
                         aeswf-transformer-prepend-spacer-maybe))))
               (anything-set-sources
                (list (source "functions" 'complete-function fs)
-                     (source "variables" 'complete-variable bs))))))))
+                     (source "variables" 'complete-variable bs))
+               nil t))))))
 
 (defcustom anything-el-swank-fuzzy-complete-symbol-classify t
   "*If non-nil, use separate source for the functions/variables in `anything-el-swank-fuzzy-complete-symbol'."
