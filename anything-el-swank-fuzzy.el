@@ -271,8 +271,6 @@ proper text properties."
          anything-el-swank-fuzzy-completions-prefix-length)
       (loop for c in completions
             for sym = (intern (car c))
-            with fs = nil
-            with bs = nil
             with fbuffer = (init-candidate-buffer "functions")
             with bbuffer = (init-candidate-buffer "variables")
             when (fboundp sym)
@@ -280,17 +278,17 @@ proper text properties."
             when (boundp sym)
             do (insert-candidate bbuffer c)
             finally do
-            (flet ((source (name type completions)
+            (flet ((source (name type)
                      `((name . ,(format "el-swank-fuzzy %s" name))
                        (candidates-in-buffer)
                        (get-line . buffer-substring)
                        (type . ,type)
                        (filtered-candidate-transformer
                         aeswf-transformer-prepend-spacer-maybe))))
-              (anything-set-sources
-               (list (source "functions" 'complete-function fs)
-                     (source "variables" 'complete-variable bs))
-               nil t))))))
+              (anything-set-sources (list
+                                     (source "functions" 'complete-function)
+                                     (source "variables" 'complete-variable))
+                                    nil t))))))
 
 (defcustom anything-el-swank-fuzzy-complete-symbol-classify t
   "*If non-nil, use separate source for the functions/variables in `anything-el-swank-fuzzy-complete-symbol'."
