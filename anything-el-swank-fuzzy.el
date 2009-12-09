@@ -177,12 +177,12 @@ proper text properties."
   (flet ((save-column-maybe ()
            (or aeswf-transformer-prepend-spacer-saved-column
                (setq aeswf-transformer-prepend-spacer-saved-column
-                     (let ((ww (alcs-window-width))
+                     (let ((ww (aeswf-window-width))
                            (sw (reduce (lambda (acc x)
                                          (max acc (string-width x)))
                                        candidates
                                        :initial-value 0))
-                           (col (alcs-current-column)))
+                           (col (aeswf-current-column)))
                        (if (< (+ col sw) ww)
                            col
                          (funcall compute col sw ww)))))))
