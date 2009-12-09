@@ -61,6 +61,10 @@
 
 ;;; History:
 
+;; v0.2.1
+;; Fix "No buffer named *anything complete*" bug.
+;; Thanks deftsp for the report.
+
 ;; v0.2.0
 ;; * Add `anything-el-swank-fuzzy-complete-symbol'.
 ;; * Add `anything-el-swank-fuzzy-indent-and-complete-symbol' respectively.
