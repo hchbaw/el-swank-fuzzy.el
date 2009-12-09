@@ -107,8 +107,7 @@
         (enable-recursive-minibuffers t)
         anything-samewindow)
     (aeswf-anything-noresume sources (if target-default-input-p target nil)
-                             nil nil nil
-                             (get-buffer-create "*anything complete*"))))
+                             nil nil nil "*anything complete*")))
 
 (defun aeswf-put-any-realvalue-property (real)
   (put-text-property (point-at-bol 0) (point-at-eol 0)
