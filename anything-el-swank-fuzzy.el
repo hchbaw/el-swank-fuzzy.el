@@ -232,21 +232,23 @@ proper text properties."
         (aeswf-transformer-prepend-spacer-compute candidates source compute))
     candidates))
 
+(defun aeswf-source-base (ass)
+  (append ass
+          '((candidates-in-buffer)
+            (get-line . buffer-substring)
+            (filtered-candidate-transformer
+             aeswf-transformer-prepend-spacer-maybe))))
 ;;; basic completion.
 (defvar anything-el-swank-fuzzy-complete-functions
-  `((name . "el-swank-fuzzy functions")
-    (init . ,(apply-partially 'aeswf-init-candidates-buffer 'fboundp))
-    (candidates-in-buffer)
-    (get-line . buffer-substring)
-    (type . complete-function)
-    (filtered-candidate-transformer aeswf-transformer-prepend-spacer-maybe)))
+  (aeswf-source-base
+   `((name . "el-swank-fuzzy functions")
+     (init . ,(apply-partially 'aeswf-init-candidates-buffer 'fboundp))
+     (type . complete-function))))
 (defvar anything-el-swank-fuzzy-complete-variables
-  `((name . "el-swank-fuzzy variables")
-    (init . ,(apply-partially 'aeswf-init-candidates-buffer 'boundp))
-    (candidates-in-buffer)
-    (get-line . buffer-substring)
-    (type . complete-variable)
-    (filtered-candidate-transformer aeswf-transformer-prepend-spacer-maybe)))
+  (aeswf-source-base
+   `((name . "el-swank-fuzzy variables")
+     (init . ,(apply-partially 'aeswf-init-candidates-buffer 'boundp))
+     (type . complete-variable))))
 (defun aeswf-complete (sources)
   (flet ((get-input ()
            (let ((b (bounds-of-thing-at-point 'symbol)))
@@ -304,12 +306,9 @@ proper text properties."
             do (insert-candidate bbuffer c)
             finally do
             (flet ((source (name type)
-                     `((name . ,(format "el-swank-fuzzy %s" name))
-                       (candidates-in-buffer)
-                       (get-line . buffer-substring)
-                       (type . ,type)
-                       (filtered-candidate-transformer
-                        aeswf-transformer-prepend-spacer-maybe))))
+                     (aeswf-source-base
+                      `((name . ,(format "el-swank-fuzzy %s" name))
+                        (type . ,type)))))
               (anything-set-sources (list
                                      (source "functions" 'complete-function)
                                      (source "variables" 'complete-variable))
@@ -323,12 +322,11 @@ proper text properties."
   (if classifyp
       '(((name . "el-swank-fuzzy symbol meta source")
          (init . aeswf-complete-symbol-meta-source-init)))
-    `(((name . "el-swank-fuzzy symbol")
-       (init . ,(apply-partially 'aeswf-init-candidates-buffer
-                                 (lambda (s) (or (boundp s) (fboundp s)))))
-       (get-line . buffer-substring)
-       (candidates-in-buffer)
-       (type . complete)))))
+    `(,(aeswf-source-base
+        `((name . "el-swank-fuzzy symbol")
+          (init . ,(apply-partially 'aeswf-init-candidates-buffer
+                                    (lambda (s) (or (boundp s) (fboundp s)))))
+          (type . complete))))))
 (defun anything-el-swank-fuzzy-complete-symbol ()
   "`lisp-complete-symbol' using `anything'."
   (interactive)
