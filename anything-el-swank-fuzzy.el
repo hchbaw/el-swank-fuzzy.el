@@ -62,7 +62,7 @@
 ;;; History:
 
 ;; v0.3.0
-;; Teach transformer to play ncely a bit with `anything-enable-shortcuts'.
+;; Teach transformer to play nicely a bit with `anything-enable-shortcuts'.
 
 ;; v0.2.1
 ;; Fix "No buffer named *anything complete*" bug.
