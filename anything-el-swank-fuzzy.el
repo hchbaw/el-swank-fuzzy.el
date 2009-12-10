@@ -158,7 +158,7 @@ proper text properties."
 
 ;;; anything-show-completion.el extension.
 (defvar aeswf-tps-count 0)
-(defun aeswf-transformer-prepend-spacer0 (prepend candidates _source)
+(defun aeswf-transformer-prepend-spacer (prepend candidates _source)
   (loop for cand in candidates
         for i from aeswf-tps-count to (+ aeswf-tps-count (length candidates))
         collect (cons (funcall prepend cand i)
@@ -180,60 +180,52 @@ proper text properties."
            (or aeswf-tps-saved-column
                (setq aeswf-tps-saved-column
                      (aeswf-tps-initialize candidates compute)))))
-    (if candidates
-        (aeswf-tps-compute (save-column-maybe) anything-digit-overlays
-                           candidates source)
-      candidates)))
+    (when candidates
+      (aeswf-tps-compute (save-column-maybe) anything-digit-overlays
+                         candidates source))))
 (defun aeswf-tps-initialize (candidates compute)
-  (let ((column (let ((ww (aeswf-window-width))
-                      (sw (loop for c in candidates maximize (string-width c)))
-                      (col (aeswf-current-column)))
-                  (if (< (+ col sw) ww)
-                      col
-                    (funcall compute col sw ww)))))
-    (prog1 column
-      (aeswf-tps-extend-any-digit-overlays column))))
+  (let ((ww (aeswf-window-width))
+        (sw (loop for c in candidates maximize (string-width c)))
+        (col (aeswf-current-column)))
+    (if (< (+ col sw) ww)
+        col
+      (funcall compute col sw ww))))
 (defun aeswf-tps-compute (column overlays candidates source)
   (let ((prepend
-         (lambda (column cand i)
-           (let ((spacers (aeswf-tps-compute-spacer column (nth i overlays))))
+         (lambda (column overlays cand i)
+           (let ((spacers (aeswf-tps-compute-spacer column i overlays)))
              (concat (make-string spacers ? ) cand)))))
-    (aeswf-transformer-prepend-spacer0 (apply-partially prepend column)
-                                       candidates source)))
-(defun aeswf-tps-compute-spacer (column overlay)
-  (or (and anything-enable-digit-shortcuts
-           overlay
-           (overlay-get overlay 'before-string-old)
-           0)
+    (aeswf-transformer-prepend-spacer (apply-partially prepend column overlays)
+                                      candidates source)))
+(defvar aeswf-tps-shortcut-length 4) ;; Taken from the format arg "%s -".
+(defun aeswf-tps-compute-spacer (column i overlays)
+  (or (and anything-enable-digit-shortcuts overlays (nth i overlays)
+           (max 0 (- column aeswf-tps-shortcut-length)))
       column))
-(defun* aeswf-tps-extend-any-digit-overlays (column &optional (length 4))
-  ;; Default length 4 is taken from the format string argument "%s - ".
-  (dolist (ov anything-digit-overlays)
-    (let ((os (overlay-get ov 'before-string)))
-      (overlay-put ov 'before-string
-                   (concat (make-string (max 0 (- column length)) ? ) os))
-      (overlay-put ov 'before-string-old os))))
-(defun aeswf-tps-cleanup-any-digit-overlays ()
-  (dolist (ov anything-digit-overlays)
-    (anything-aif (overlay-get ov 'before-string-old)
-        (overlay-put ov 'before-string it))))
-(defun aeswf-tps-cleanup ()
+(defun aeswf-tps-any-cleanup ()
   (setq aeswf-tps-saved-column nil)
-  (setq aeswf-tps-count 0)
-  (aeswf-tps-cleanup-any-digit-overlays))
-(defun aeswf-tps-any-update ()
   (setq aeswf-tps-count 0))
+(defun aeswf-tps-any-update ()
+  (setq aeswf-tps-count 0)
+  (aeswf-tps-any-update-move-overlays-maybe))
+(defun aeswf-tps-any-update-move-overlays-maybe ()
+  (when (and anything-enable-shortcuts anything-digit-overlays
+             aeswf-tps-saved-column)
+    (dolist (ov anything-digit-overlays)
+      (anything-aif (overlay-start ov)
+          (let ((pos (+ it (max 0 (- aeswf-tps-saved-column
+                                     aeswf-tps-shortcut-length)))))
+            (move-overlay ov pos pos (get-buffer anything-buffer)))))))
 
 (eval-when (load eval)
   (when (and (boundp 'anything-show-completion-activate))
     (add-hook 'anything-update-hook 'aeswf-tps-any-update)
-    (add-hook 'anything-cleanup-hook 'aeswf-tps-cleanup)))
+    (add-hook 'anything-cleanup-hook 'aeswf-tps-any-cleanup)))
 
 (defun aeswf-transformer-prepend-spacer-maybe (candidates source)
   (if (and (boundp 'anything-show-completion-activate)
            anything-show-completion-activate)
-      (let ((compute (lambda (col sw ww)
-                       (- ww sw))))
+      (let ((compute (lambda (col sw ww) (- ww sw))))
         (aeswf-transformer-prepend-spacer-compute candidates source compute))
     candidates))
 
